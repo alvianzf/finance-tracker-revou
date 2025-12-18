@@ -1,46 +1,44 @@
-# Stage 1: Build stage
+# =====================
+# Build stage
+# =====================
 FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Install pnpm globally
 RUN npm install -g pnpm
 
-# Copy package files first
-COPY package*.json ./
-
-# Install dependencies
+COPY package.json pnpm-lock.yaml ./
 RUN pnpm install
 
-# Copy source code
 COPY . .
 
-# Generate Prisma client
+# Generate Prisma client for type safety during build
 RUN pnpm prisma generate
 
-# Build NestJS app
+# Build NestJS
 RUN pnpm run build
 
-# Stage 2: Runtime stage
+
+# =====================
+# Runtime stage
+# =====================
 FROM node:22-alpine
 
 WORKDIR /app
 
-# Install pnpm globally
 RUN npm install -g pnpm
 
-# Copy only production dependencies
-COPY package*.json ./
+# Install prod dependencies only
+COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --prod
 
-# Copy built NestJS code
+# Copy built app
 COPY --from=builder /app/dist ./dist
+COPY prisma ./prisma
 
-# Copy Prisma client (generated) to node_modules
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Generate Prisma client AGAIN (runtime-safe)
+RUN pnpm prisma generate
 
-# Expose port for API
 EXPOSE 3000
 
-# Run Prisma migrate + seed + start app
-CMD sh -c "pnpm prisma generate && pnpm prisma migrate deploy && pnpm prisma db seed && node dist/main.js"
+CMD sh -c "pnpm prisma migrate deploy && pnpm prisma db seed && node dist/main.js"
