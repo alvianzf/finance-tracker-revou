@@ -10,7 +10,7 @@ RUN apk add --no-cache \
 WORKDIR /app
 
 # Install pnpm
-RUN npm install -g pnpm
+RUN npm install -g pnpm@8.10.2
 
 # Copy deps first
 COPY package.json pnpm-lock.yaml ./
